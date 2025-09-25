@@ -1,1 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Personal Coding AI Assistant</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>Personal Coding AI</h1>
+            <div class="settings-btn" onclick="toggleSettings()">⚙️</div>
+        </header>
 
+        <div class="settings-panel" id="settingsPanel">
+            <h3>API Configuration</h3>
+            <select id="aiProvider" onchange="updateApiKey()">
+                <option value="openai">OpenAI GPT-4</option>
+                <option value="anthropic">Anthropic Claude</option>
+                <option value="cohere">Cohere</option>
+                <option value="huggingface">Hugging Face</option>
+            </select>
+            <input type="password" id="apiKey" placeholder="Enter API Key">
+            <label>
+                <input type="checkbox" id="icloudSync"> Enable iCloud Sync
+            </label>
+            <button onclick="saveSettings()">Save Settings</button>
+        </div>
+
+        <div class="chat-container" id="chatContainer">
+            <!-- Messages will be dynamically added here -->
+        </div>
+
+        <div class="input-container">
+            <textarea id="messageInput" placeholder="Describe what you want to code..." rows="3"></textarea>
+            <button id="sendButton" onclick="sendMessage()">Send</button>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-javascript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-swift.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-kotlin.min.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: linear-gradient(135deg, #1e1e2e 0%, #2d2d44 100%);
+    color: #e0e0e0;
+    height: 100vh;
+    overflow: hidden;
+}
+
+.container {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    max-width: 1200px;
+    margin: 0 auto;
+    background: rgba(30, 30, 46, 0.95);
+    backdrop-filter: blur(10px);
+}
+
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px;
+    background: rgba(45, 45, 68, 0.8);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.header h1 {
+    color: #ff9500;
+    font-size: 24px;
+    font-weight: 600;
+}
+
+.settings-btn {
+    cursor: pointer;
+    font-size: 20px;
+    padding: 8px;
+    border-radius: 8px;
+    transition: background 0.2s;
+}
+
+.settings-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.settings-panel {
+    display: none;
+    background: rgba(45, 45, 68, 0.95);
+    padding: 20px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    gap: 15px;
+    flex-direction: column;
+}
+
+.settings-panel.show {
+    display: flex;
+}
+
+.settings-panel select,
+.settings-panel input {
+    padding: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 8px;
+    background: rgba(30, 30, 46, 0.8);
+    color: #e0e0e0;
+    font-size: 14px;
+}
+
+.settings-panel button {
+    padding: 12px 24px;
+    background: #ff9500;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: background 0.2s;
+}
+
+.settings-panel button:hover {
+    background: #e6850e;
+}
+
+.chat-container {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.message-group {
+    display: flex;
+    gap: 15px;
+    align-items: flex-start;
+}
+
+.user-message {
+    background: linear-gradient(135deg, #ff9500, #ffb143);
+    color: white;
+    padding: 15px 20px;
+    border-radius: 18px 18px 4px 18px;
+    max-width: 70%;
+    font-size: 16px;
+    line-height: 1.5;
+    box-shadow: 0 4px 12px rgba(255, 149, 0, 0.3);
+}
+
+.code-container {
+    position: relative;
+    max-width: 60%;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.code-container.minimized {
+    max-width: 40px;
+    height: 40px;
+    overflow: hidden;
+}
+
+.code-header {
+    background: rgba(45, 45, 68, 0.9);
+    padding: 12px 16px;
+    border-radius: 12px 12px 0 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.code-header.minimized-header {
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    justify-content: center;
+    padding: 0;
+}
+
+.code-title {
+    font-weight: 600;
+    color: #4ade80;
+    font-size: 14px;
+}
+
+.code-controls {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.control-btn {
+    padding: 4px 8px;
+    background: rgba(255, 255, 255, 0.1);
+    border: none;
+    border-radius: 4px;
+    color: #e0e0e0;
+    cursor: pointer;
+    font-size: 12px;
+    transition: all 0.2s;
+}
+
+.control-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.close-btn {
+    background: #ef4444 !important;
+    color: white;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: bold;
+}
+
+.code-content {
+    background: #1a1a2e;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-top: none;
+    border-radius: 0 0 12px 12px;
+    overflow: hidden;
+}
+
+.code-block {
+    margin: 0 !important;
+    background: transparent !important;
+}
+
+.code-block code {
+    font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+    font-size: 14px;
+    line-height: 1.6;
+    padding: 20px !important;
+    display: block;
+    overflow-x: auto;
+}
+
+.connection-line {
+    width: 2px;
+    background: linear-gradient(to bottom, #ff9500, #4ade80);
+    margin: 0 10px;
+    border-radius: 1px;
+    min-height: 60px;
+    flex-shrink: 0;
+}
+
+.input-container {
+    padding: 20px;
+    background: rgba(45, 45, 68, 0.8);
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    display: flex;
+    gap: 15px;
+}
+
+#messageInput {
+    flex: 1;
+    padding: 15px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 12px;
+    background: rgba(30, 30, 46, 0.8);
+    color: #e0e0e0;
+    font-size: 16px;
+    resize: vertical;
+    min-height: 60px;
+    font-family: inherit;
+}
+
+#messageInput:focus {
+    outline: none;
+    border-color: #ff9500;
+    box-shadow: 0 0 0 2px rgba(255, 149, 0, 0.2);
+}
+
+#sendButton {
+    padding: 15px 30px;
+    background: linear-gradient(135deg, #ff9500, #ffb143);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 16px;
+    transition: all 0.2s;
+    align-self: flex-end;
+}
+
+#sendButton:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(255, 149, 0, 0.4);
+}
+
+#sendButton:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.loading {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 20px;
+    color: #4ade80;
+}
+
+.spinner {
+    width: 20px;
+    height: 20px;
+    border: 2px solid rgba(74, 222, 128, 0.2);
+    border-top: 2px solid #4ade80;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Scrollbar styling */
+.chat-container::-webkit-scrollbar {
+    width: 8px;
+}
+
+.chat-container::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+}
+
+.chat-container::-webkit-scrollbar-thumb {
+    background: rgba(255, 149, 0, 0.6);
+    border-radius: 4px;
+}
+
+.chat-container::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 149, 0, 0.8);
+}
+
+/* Mobile responsivity */
+@media (max-width: 768px) {
+    .message-group {
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .user-message {
+        max-width: 100%;
+    }
+    
+    .code-container {
+        max-width: 100%;
+    }
+    
+    .connection-line {
+        width: 100%;
+        height: 2px;
+        min-height: auto;
+        margin: 5px 0;
+    }
+}
